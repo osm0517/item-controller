@@ -1,13 +1,17 @@
-package example.itemcontroller.directory.controller;
+package example.itemcontroller.directory.controller.validation;
 
 import example.itemcontroller.directory.domain.DeliveryCode;
 import example.itemcontroller.directory.domain.Item;
 import example.itemcontroller.directory.domain.ItemType;
+import example.itemcontroller.directory.dto.ItemSaveDto;
+import example.itemcontroller.directory.dto.ItemUpdateDto;
 import example.itemcontroller.directory.repository.ItemRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -16,11 +20,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-//@Controller
-//@RequestMapping("/basic/items")
+@Controller
+@RequestMapping("/validation/v4/items")
 @Slf4j
 @RequiredArgsConstructor
-public class ItemController {
+public class ValidationControllerV4 {
 
     private final ItemRepository itemRepository;
 
@@ -47,7 +51,6 @@ public class ItemController {
         return deliveryCodes;
     }
 
-
     @GetMapping
     public String items(Model model){
 
@@ -55,7 +58,7 @@ public class ItemController {
 
         model.addAttribute("items", items);
 
-        return "items";
+        return "/v4/items";
     }
 
     @GetMapping("/{itemId}")
@@ -65,7 +68,7 @@ public class ItemController {
 
         model.addAttribute("item", item);
 
-        return "item";
+        return "/v4/item";
     }
 
     @GetMapping("/add")
@@ -73,21 +76,25 @@ public class ItemController {
             Model model
     ){
         model.addAttribute("item", new Item());
-        return "addform";
+        return "/v4/addform";
     }
 
     @PostMapping("/add")
-    public String addItem(Item item, RedirectAttributes redirectAttributes){
+    public String addItem(@Validated @ModelAttribute(name = "item") ItemSaveDto dto, BindingResult bindingResult, RedirectAttributes redirectAttributes, Model model){
+
+        if(bindingResult.hasErrors()){
+            log.debug("errors = {}", bindingResult);
+            return "/v4/addform";
+        }
+
+        Item item = new Item(dto.getItemName(), dto.getPrice(), dto.getQuantity());
+
         Item savedItem = itemRepository.save(item);
 
         redirectAttributes.addAttribute("itemId", savedItem.getId());
         redirectAttributes.addAttribute("status", true);
 
-        log.info("regions = {}", item.getRegions());
-        log.info("itemType = {}", item.getItemType());
-        log.info("deliveryCode = {}", item.getDeliveryCode());
-
-        return "redirect:/basic/items/{itemId}";
+        return "redirect:/validation/v4/items/{itemId}";
     }
 
     @GetMapping("/{itemId}/edit")
@@ -97,12 +104,14 @@ public class ItemController {
 
         model.addAttribute("item", findItem);
 
-        return "editform";
+        return "/v4/editform";
     }
 
     @PostMapping("/{itemId}/edit")
-    public String editform(@PathVariable int itemId, Item item, RedirectAttributes redirectAttributes){
+    public String editform(@PathVariable int itemId, @Validated @ModelAttribute(name = "item") ItemUpdateDto dto, RedirectAttributes redirectAttributes){
         Item findItem = itemRepository.findById(itemId);
+
+        Item item = new Item(dto.getItemName(), dto.getPrice(), dto.getQuantity());
 
         updateItem(item, findItem);
 
@@ -111,7 +120,7 @@ public class ItemController {
         redirectAttributes.addAttribute("itemId", savedItem.getId());
         redirectAttributes.addAttribute("status", true);
 
-        return "redirect:/basic/items/{itemId}";
+        return "redirect:/validation/v4/items/{itemId}";
     }
 
     private static void updateItem(Item item, Item findItem) {

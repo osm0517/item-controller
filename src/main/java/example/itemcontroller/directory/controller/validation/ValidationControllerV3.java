@@ -1,26 +1,29 @@
-package example.itemcontroller.directory.controller;
+package example.itemcontroller.directory.controller.validation;
 
 import example.itemcontroller.directory.domain.DeliveryCode;
 import example.itemcontroller.directory.domain.Item;
 import example.itemcontroller.directory.domain.ItemType;
 import example.itemcontroller.directory.repository.ItemRepository;
+import example.itemcontroller.directory.validator.ItemValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-//@Controller
-//@RequestMapping("/basic/items")
+@Controller
+@RequestMapping("/validation/v3/items")
 @Slf4j
 @RequiredArgsConstructor
-public class ItemController {
+public class ValidationControllerV3 {
 
     private final ItemRepository itemRepository;
 
@@ -47,7 +50,6 @@ public class ItemController {
         return deliveryCodes;
     }
 
-
     @GetMapping
     public String items(Model model){
 
@@ -55,7 +57,7 @@ public class ItemController {
 
         model.addAttribute("items", items);
 
-        return "items";
+        return "/v3/items";
     }
 
     @GetMapping("/{itemId}")
@@ -65,7 +67,7 @@ public class ItemController {
 
         model.addAttribute("item", item);
 
-        return "item";
+        return "/v3/item";
     }
 
     @GetMapping("/add")
@@ -73,21 +75,23 @@ public class ItemController {
             Model model
     ){
         model.addAttribute("item", new Item());
-        return "addform";
+        return "/v3/addform";
     }
 
     @PostMapping("/add")
-    public String addItem(Item item, RedirectAttributes redirectAttributes){
+    public String addItem(@Validated Item item, BindingResult bindingResult, RedirectAttributes redirectAttributes, Model model){
+
+        if(bindingResult.hasErrors()){
+            log.debug("errors = {}", bindingResult);
+            return "/v3/addform";
+        }
+
         Item savedItem = itemRepository.save(item);
 
         redirectAttributes.addAttribute("itemId", savedItem.getId());
         redirectAttributes.addAttribute("status", true);
 
-        log.info("regions = {}", item.getRegions());
-        log.info("itemType = {}", item.getItemType());
-        log.info("deliveryCode = {}", item.getDeliveryCode());
-
-        return "redirect:/basic/items/{itemId}";
+        return "redirect:/validation/v3/items/{itemId}";
     }
 
     @GetMapping("/{itemId}/edit")
@@ -97,7 +101,7 @@ public class ItemController {
 
         model.addAttribute("item", findItem);
 
-        return "editform";
+        return "/v3/editform";
     }
 
     @PostMapping("/{itemId}/edit")
@@ -111,7 +115,7 @@ public class ItemController {
         redirectAttributes.addAttribute("itemId", savedItem.getId());
         redirectAttributes.addAttribute("status", true);
 
-        return "redirect:/basic/items/{itemId}";
+        return "redirect:/validation/v3/items/{itemId}";
     }
 
     private static void updateItem(Item item, Item findItem) {

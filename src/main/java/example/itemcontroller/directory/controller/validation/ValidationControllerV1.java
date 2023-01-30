@@ -1,4 +1,4 @@
-package example.itemcontroller.directory.controller;
+package example.itemcontroller.directory.controller.validation;
 
 import example.itemcontroller.directory.domain.DeliveryCode;
 import example.itemcontroller.directory.domain.Item;
@@ -11,16 +11,13 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-//@Controller
-//@RequestMapping("/basic/items")
+@Controller
+@RequestMapping("/validation/v1/items")
 @Slf4j
 @RequiredArgsConstructor
-public class ItemController {
+public class ValidationControllerV1 {
 
     private final ItemRepository itemRepository;
 
@@ -55,7 +52,7 @@ public class ItemController {
 
         model.addAttribute("items", items);
 
-        return "items";
+        return "/v1/items";
     }
 
     @GetMapping("/{itemId}")
@@ -65,7 +62,7 @@ public class ItemController {
 
         model.addAttribute("item", item);
 
-        return "item";
+        return "/v1/item";
     }
 
     @GetMapping("/add")
@@ -73,21 +70,41 @@ public class ItemController {
             Model model
     ){
         model.addAttribute("item", new Item());
-        return "addform";
+        return "/v1/addform";
     }
 
     @PostMapping("/add")
-    public String addItem(Item item, RedirectAttributes redirectAttributes){
+    public String addItem(Item item, RedirectAttributes redirectAttributes, Model model){
+
+        Map<String, String> errors = new HashMap<>();
+
+        log.debug("item = {}", item);
+
+        if(Objects.equals(item.getItemName(), "")){
+            errors.put("itemName", "상품명은 필수입니다.");
+        }
+        if(item.getPrice() == null || item.getPrice() < 1000 || item.getPrice() > 1000000){
+            errors.put("price", "가격은 1,000~1,000,000 사이에 값을 입력해야합니다.");
+        }
+        if(item.getQuantity() == null || item.getQuantity() > 9999){
+            errors.put("quantity", "최대 수량은 9999입니다.");
+        }
+        if(item.getQuantity() != null && item.getPrice() != null){
+            if(item.getQuantity() * item.getPrice() < 10000){
+                errors.put("globalError", "수량과 가격의 곱이 10,000원 이상이여야합니다.");
+            }
+        }
+        if(!errors.isEmpty()){
+            model.addAttribute("errors", errors);
+            return "/v1/addform";
+        }
+
         Item savedItem = itemRepository.save(item);
 
         redirectAttributes.addAttribute("itemId", savedItem.getId());
         redirectAttributes.addAttribute("status", true);
 
-        log.info("regions = {}", item.getRegions());
-        log.info("itemType = {}", item.getItemType());
-        log.info("deliveryCode = {}", item.getDeliveryCode());
-
-        return "redirect:/basic/items/{itemId}";
+        return "redirect:/validation/v1/items/{itemId}";
     }
 
     @GetMapping("/{itemId}/edit")
@@ -97,7 +114,7 @@ public class ItemController {
 
         model.addAttribute("item", findItem);
 
-        return "editform";
+        return "/v1/editform";
     }
 
     @PostMapping("/{itemId}/edit")
@@ -111,7 +128,7 @@ public class ItemController {
         redirectAttributes.addAttribute("itemId", savedItem.getId());
         redirectAttributes.addAttribute("status", true);
 
-        return "redirect:/basic/items/{itemId}";
+        return "redirect:/validation/v1/items/{itemId}";
     }
 
     private static void updateItem(Item item, Item findItem) {
